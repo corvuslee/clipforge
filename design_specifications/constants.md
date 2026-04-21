@@ -9,7 +9,9 @@
 | `wire_cost`        | $20.00         |
 | `autoclipper_cost` | $50.00         |
 | `clip_price`       | $0.05          |
-
+| `auto_clippers`    | 0              |
+| `unsold_clips`     | 0              |
+| `total_clips`      | 0              |
 
 ## Wire Cost Function
 
@@ -46,7 +48,7 @@ AutoClipper cost scales exponentially with current count.
 | `AUTOCLIPPER_BASE_COST`   | Cost of first autoclipper | $50.00 |
 | `AUTOCLIPPER_GROWTH_RATE` | Exponential growth factor | 1.004  |
 
-**Formula**: `autoclipper_cost = AUTOCLIPPER_GROWTH_RATE ** A * AUTOCLIPPER_BASE_COST` where A = current autoclipper count
+**Formula**: `autoclipper_cost = AUTOCLIPPER_BASE_COST × AUTOCLIPPER_GROWTH_RATEᴬ` where A = current autoclipper count
 
 ## Production Function
 
@@ -80,8 +82,7 @@ Demand determines the fraction of available clips that sell each turn. It is a f
 
 **Price factor (Gaussian curve):**
 - Uses Gaussian curve for bounded behavior
-- Formula: `price_factor = PEAK × exp(-(price²)/(2×SIGMA²))`
-- At low prices: price_factor approaches PEAK (bounded ceiling)
+- Formula: `price_factor = PRICE_FACTOR_PEAK × exp(-(clip_price²)/(2×PRICE_FACTOR_SIGMA²))`
 - At high prices: price_factor decays to 0 (no floor)
 
 **Autoclipper influence:**
@@ -95,7 +96,6 @@ Demand determines the fraction of available clips that sell each turn. It is a f
 - `daily_production = auto_clippers × CLIPS_PER_AUTOCLIPPER`
 - `INVENTORY_THRESHOLD_FACTOR = 2.0` means 2 days of inventory halves demand
 - Creates equilibrium pressure between production and sales
-- TODO: review interface doc to see if the market module (which holds the demand function) need to see the production capacity from factory.
 
 **Sales calculation:**
 - Clip sales calculation solely based on `unsold_clips`
