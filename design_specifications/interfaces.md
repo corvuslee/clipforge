@@ -141,11 +141,12 @@ External agents interact via events defined in the respective modules:
 
 **State**:
 - `price: float` – current selling price.
-- `demand_parameters` – hidden internal parameters controlling price elasticity and base demand (e.g., `elasticity: float`, `base_demand: int`).
+- `auto_clippers: int` – current production capacity from Factory.
+- `unsold_clips: int` – current inventory of unsold clips.
 
 **API**:
 - `set_price(price: float) -> None` – Set selling price.
-- `process_sales() -> None` – Process sales.
+- `process_sales() -> None` – Process sales and emit clips_sold event.
 
 **Events Emitted**:
 - `market_state_reported(price: float)` – Reports current selling price to subscribers
@@ -154,6 +155,8 @@ External agents interact via events defined in the respective modules:
 
 **Events Subscribed**:
 - `plan_phase_started(turn_counter: int)` – from Turn Manager; triggers report of current state
+- `factory_state_reported(auto_clippers: int)` – from Factory; provides current production capacity
+- `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; provides current inventory state
 - `set_price(price: float)` – from External Agent; updates selling price
 - `action_phase_started(turn_counter: int)` – from Turn Manager; triggers sales processing
 

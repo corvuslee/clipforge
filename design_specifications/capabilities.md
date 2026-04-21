@@ -31,7 +31,7 @@
 4. Emit world state snapshot + event log
 
 ## Constraints
-- Maximum 3 manual clips per turn
+- Maximum manual clips per turn (`MAX_MANUAL_CLIPS_PER_TURN` from [constants](./constants.md))
 - Hidden internal parameters (costs, demand curves)
 - All inter-module communication via event bus
 - Failure events for invalid operations

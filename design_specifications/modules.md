@@ -32,7 +32,7 @@
 **Description**: Manages automated production capacity and clip manufacturing
 
 **Business Logic**:
-- Each autoclipper produces 1 clip per turn
+- Each autoclipper produces `MAX_MANUAL_CLIPS_PER_TURN` clips per turn
 - Production requires sufficient wire inventory
 - Cannot remove more autoclippers than owned
 
