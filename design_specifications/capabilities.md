@@ -19,7 +19,7 @@
 
 ## Modules
 - **Inventory**: wire, unsold_clips, total_clips
-- **Treasury**: money
+- **Ledger**: money
 - **Market**: price, demand, sales processing
 - **Factory**: auto_clippers, production handling
 - **Turn Manager**: turn_counter, turn progression control
@@ -31,7 +31,6 @@
 4. Emit world state snapshot + event log
 
 ## Constraints
-- Maximum manual clips per turn (`MAX_MANUAL_CLIPS_PER_TURN` from [constants](./constants.md))
 - Hidden internal parameters (costs, demand curves)
 - All inter-module communication via event bus
 - Failure events for invalid operations

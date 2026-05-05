@@ -11,6 +11,7 @@
 - Turn counter increments monotonically
 - Plan phase must complete before action phase
 - All state reports must be received before opening planning window
+- Turn-based sequencing ensures events are processed sequentially; no race conditions
 
 ## Ledger
 **Description**: Manages financial resources and transaction tracking
@@ -32,9 +33,9 @@
 **Description**: Manages automated production capacity and clip manufacturing
 
 **Business Logic**:
-- Each autoclipper produces `MAX_MANUAL_CLIPS_PER_TURN` clips per turn
-- Production requires sufficient wire inventory
-- Cannot remove more autoclippers than owned
+- Each autoclipper produces `CLIPS_PER_AUTOCLIPPER` clips per turn
+- Wire is consumed at action phase start (before production)
+- If insufficient wire, produce partial clips: `wire // WIRE_PER_CLIP`
 
 ## Market
 **Description**: Handles pricing logic, demand modeling, and sales transactions
@@ -166,8 +167,14 @@ sequenceDiagram
     participant TM as Turn Manager
     participant Mar as Market
     participant Inv as Inventory
+    participant Fac as Factory
     participant Led as Ledger
 
+    Note over Mar,Fac: Planning Phase
+    Inv-xMar: inventory_state_reported (event)
+    Fac-xMar: factory_state_reported (event)
+
+    Note over Mar,Led: Action Phase
     TM-xMar: action_phase_started (event)
     Mar->>Mar: process_sales()
     Mar-xInv: clips_sold (event)
@@ -184,6 +191,10 @@ sequenceDiagram
     participant Fac as Factory
     participant Inv as Inventory
 
+    Note over Fac,Inv: Planning Phase
+    Inv-xFac: inventory_state_reported (event)
+
+    Note over Fac,Inv: Action Phase
     TM-xFac: action_phase_started (event)
     Fac->>Fac: produce_clips()
     Fac-xInv: wire_consumed (event)

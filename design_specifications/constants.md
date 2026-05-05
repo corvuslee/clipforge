@@ -5,11 +5,11 @@
 | Item               | Starting value |
 | ------------------ | -------------- |
 | `fund`             | $0.00          |
-| `wire_inch`        | 1000           |
+| `wire_inch`        | 150            |
 | `wire_cost`        | $20.00         |
 | `autoclipper_cost` | $50.00         |
 | `clip_price`       | $0.05          |
-| `auto_clippers`    | 0              |
+| `auto_clippers`    | 1              |
 | `unsold_clips`     | 0              |
 | `total_clips`      | 0              |
 
@@ -52,11 +52,10 @@ AutoClipper cost scales exponentially with current count.
 
 ## Production Function
 
-| Constant                    | Description                                        | Value |
-| --------------------------- | -------------------------------------------------- | ----- |
-| `CLIPS_PER_AUTOCLIPPER`     | Clips produced by one autoclipper per turn         | 30    |
-| `WIRE_PER_CLIP`             | Wire inch consumed to produce one clip             | 1     |
-| `MAX_MANUAL_CLIPS_PER_TURN` | Maximum manual clips an agent can produce per turn | 90    |
+| Constant                | Description                                | Value |
+| ----------------------- | ------------------------------------------ | ----- |
+| `CLIPS_PER_AUTOCLIPPER` | Clips produced by one autoclipper per turn | 30    |
+| `WIRE_PER_CLIP`         | Wire inch consumed to produce one clip     | 1     |
 
 ## Demand Function
 

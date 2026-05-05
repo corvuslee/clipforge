@@ -4,6 +4,12 @@
 
 External agents interact via events defined in the respective modules:
 
+**Transport**: Redis via Event Bus module. Agents use the same `publish`/`subscribe` API as internal modules.
+
+**Connection Lifecycle**: Long-running process that subscribes at startup and stays connected throughout the game.
+
+**Multiple Agents**: Supported. A single program can host multiple specialized agents (e.g., purchasing agent, pricing agent). Each agent handles distinct responsibilities with no overlap. The program emits one `plan_phase_completed` after all internal agents finish planning.
+
 **Events Emitted**:
 - To Ledger: `buy_wire(count: int)`, `buy_autoclipper(count: int)`
 - To Market: `set_price(price: float)`
@@ -28,6 +34,10 @@ External agents interact via events defined in the respective modules:
 - `turn_counter: int` – current turn number (starts at 1).
 - `pending_state_reports: Set[str]` – modules yet to report state.
 - `pending_action_completions: Set[str]` – modules yet to complete action phase.
+
+**Invariants**:
+- Turn counter increments monotonically
+- Plan phase must complete before action phase
 
 **API**:
 - `start_game() -> None` – Initialize game and emit `plan_phase_started`.
@@ -59,6 +69,9 @@ External agents interact via events defined in the respective modules:
 **State**:
 - `fund: int` – current cash balance.
 
+**Invariants**:
+- Fund cannot go negative
+
 **API**:
 - `add_funds(amount: int) -> None` – Add funds to ledger.
 - `remove_funds_for_wire(amount: int) -> None` – Remove funds for wire purchase.
@@ -89,6 +102,10 @@ External agents interact via events defined in the respective modules:
 - `unsold_clips: int` – clips produced but not yet sold.
 - `total_clips: int` – cumulative clips ever produced.
 
+**Invariants**:
+- Wire and unsold_clips cannot go negative
+- total_clips is cumulative and never decreases
+
 **API**:
 - `add_wire(count: int) -> None` – Add wire to inventory.
 - `remove_wire(count: int) -> None` – Remove wire from inventory.
@@ -115,6 +132,10 @@ External agents interact via events defined in the respective modules:
 
 **State**:
 - `auto_clippers: int` – number of automated clippers.
+- `wire: int` – cached wire count from Inventory.
+
+**Invariants**:
+- auto_clippers cannot go negative
 
 **API**:
 - `add_autoclipper(count: int) -> None` – Add autoclippers.
@@ -129,6 +150,7 @@ External agents interact via events defined in the respective modules:
 
 **Events Subscribed**:
 - `plan_phase_started(turn_counter: int)` – from Turn Manager; triggers report of current state
+- `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; caches wire count for production calculation
 - `autoclipper_purchase_approved(count: int)` – from Ledger; adds autoclippers
 - `action_phase_started(turn_counter: int)` – from Turn Manager; triggers clip production
 
@@ -143,6 +165,9 @@ External agents interact via events defined in the respective modules:
 - `price: float` – current selling price.
 - `auto_clippers: int` – current production capacity from Factory.
 - `unsold_clips: int` – current inventory of unsold clips.
+
+**Invariants**:
+- Price must be a positive number
 
 **API**:
 - `set_price(price: float) -> None` – Set selling price.
