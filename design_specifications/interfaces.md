@@ -40,7 +40,7 @@ External agents interact via events defined in the respective modules:
 - Plan phase must complete before action phase
 
 **API**:
-- `start_game() -> None` – Initialize game and emit `plan_phase_started`.
+- None
 
 **Events Emitted**:
 - `plan_phase_started(turn_counter: int)` – Signals start of planning phase; triggers modules to report state

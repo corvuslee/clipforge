@@ -17,7 +17,7 @@
 **Description**: Manages financial resources and transaction tracking
 
 **Business Logic**:
-- Cannot remove more funds than available (insufficient funds error)
+- Purchase requests buy maximum affordable quantity (fund // cost), not more
 - Purchase requests are queued during plan phase, processed during action phase
 - Revenue from sales is credited during action phase
 
@@ -41,7 +41,7 @@
 **Description**: Handles pricing logic, demand modeling, and sales transactions
 
 **Business Logic**:
-- Price must be a positive number
+- Price must be a positive number; invalid prices are ignored (no change)
 - Demand is calculated based on price elasticity (hidden parameters)
 - Sales limited by unsold clips available
 - Revenue = clips sold × price
@@ -74,7 +74,12 @@ sequenceDiagram
     participant Fac as Factory
     participant Mar as Market
 
-    TM->>TM: start_game (manual)
+    note over All: Bootstrap: modules emit initial state on startup
+    Inv-xAll: inventory_state_reported (event)
+    Led-xAll: ledger_state_reported (event)
+    Fac-xAll: factory_state_reported (event)
+    Mar-xAll: market_state_reported (event)
+    
     TM-xAll: plan_phase_started (event)
     note over All: broadcast to all subscribers
     
