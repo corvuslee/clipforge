@@ -51,8 +51,6 @@
 
 **Business Logic**:
 - All events are published asynchronously
-- Event handlers are invoked in subscription order
-- Event log persists for debugging/replay
 
 ## Shared Utilities
 

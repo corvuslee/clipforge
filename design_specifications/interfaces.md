@@ -13,10 +13,10 @@ External agents interact via events defined in the respective modules:
 **Events Emitted**:
 - To Ledger: `buy_wire(count: int)`, `buy_autoclipper(count: int)`
 - To Market: `set_price(price: float)`
-- To Turn Manager: `plan_phase_completed(turn_counter: int)`
+- To Turn Manager: `plan_phase_completed()`
 
 **Events Subscribed**:
-- `planning_window_opened(turn_counter: int)` – from Turn Manager; signals agent can submit plans
+- `planning_window_opened()` – from Turn Manager; signals agent can submit plans
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; provides current resource state
 - `ledger_state_reported(fund: int)` – from Ledger; provides current fund balance
 - `factory_state_reported(auto_clippers: int)` – from Factory; provides current production capacity
@@ -43,13 +43,13 @@ External agents interact via events defined in the respective modules:
 - None
 
 **Events Emitted**:
-- `plan_phase_started(turn_counter: int)` – Signals start of planning phase; triggers modules to report state
-- `planning_window_opened(turn_counter: int)` – Notifies external agent that planning actions can be submitted
-- `action_phase_started(turn_counter: int)` – Signals start of action phase; triggers modules to execute queued actions
-- `action_phase_completed(turn_counter: int)` – Signals end of action phase; turn is complete
+- `plan_phase_started()` – Signals start of planning phase; triggers modules to report state
+- `planning_window_opened()` – Notifies external agent that planning actions can be submitted
+- `action_phase_started()` – Signals start of action phase; triggers modules to execute queued actions
+- `action_phase_completed()` – Signals end of action phase; turn is complete
 
 **Events Subscribed**:
-- `plan_phase_completed(turn_counter: int)` – from External Agent; signals planning is done, triggers action phase
+- `plan_phase_completed()` – from External Agent; signals planning is done, triggers action phase
 - `ledger_state_reported(fund: int)` – from Ledger; tracks pending state reports
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; tracks pending state reports
 - `factory_state_reported(auto_clippers: int)` – from Factory; tracks pending state reports
@@ -84,10 +84,10 @@ External agents interact via events defined in the respective modules:
 - `ledger_action_completed()` – Signals ledger has finished action phase processing
 
 **Events Subscribed**:
-- `plan_phase_started(turn_counter: int)` - from Turn Manager; triggers report of current state
+- `plan_phase_started()` - from Turn Manager; triggers report of current state
 - `buy_wire(count: int)` – from External Agent; queues wire purchase request for action phase
 - `buy_autoclipper(count: int)` – from External Agent; queues autoclipper purchase request for action phase
-- `action_phase_started(turn_counter: int)` – from Turn Manager; triggers processing of queued purchase requests
+- `action_phase_started()` – from Turn Manager; triggers processing of queued purchase requests
 - `clips_sold(clips: int, revenue: int)` – from Market; adds revenue to fund balance
 
 **Errors**:
@@ -117,7 +117,7 @@ External agents interact via events defined in the respective modules:
 - `inventory_action_completed()` – Signals inventory has finished action phase processing
 
 **Events Subscribed**:
-- `plan_phase_started(turn_counter: int)` – from Turn Manager; triggers report of current state
+- `plan_phase_started()` – from Turn Manager; triggers report of current state
 - `wire_purchase_approved(count: int)` – from Ledger; adds wire to inventory
 - `wire_consumed(count: int)` – from Factory; removes wire from inventory
 - `clips_produced(count: int)` – from Factory; adds clips to inventory
@@ -149,10 +149,10 @@ External agents interact via events defined in the respective modules:
 - `factory_action_completed()` – Signals factory has finished action phase processing
 
 **Events Subscribed**:
-- `plan_phase_started(turn_counter: int)` – from Turn Manager; triggers report of current state
+- `plan_phase_started()` – from Turn Manager; triggers report of current state
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; caches wire count for production calculation
 - `autoclipper_purchase_approved(count: int)` – from Ledger; adds autoclippers
-- `action_phase_started(turn_counter: int)` – from Turn Manager; triggers clip production
+- `action_phase_started()` – from Turn Manager; triggers clip production
 
 **Errors**:
 - `InsufficientCapacityError` – code `4301`, message `"Not enough autoclippers to remove"`.
@@ -179,11 +179,11 @@ External agents interact via events defined in the respective modules:
 - `market_action_completed()` – Signals market has finished action phase processing
 
 **Events Subscribed**:
-- `plan_phase_started(turn_counter: int)` – from Turn Manager; triggers report of current state
+- `plan_phase_started()` – from Turn Manager; triggers report of current state
 - `factory_state_reported(auto_clippers: int)` – from Factory; provides current production capacity
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; provides current inventory state
 - `set_price(price: float)` – from External Agent; updates selling price
-- `action_phase_started(turn_counter: int)` – from Turn Manager; triggers sales processing
+- `action_phase_started()` – from Turn Manager; triggers sales processing
 
 **Errors**:
 - `InvalidPriceError` – code `4401`, message `"Price must be a positive number"`.
@@ -205,13 +205,12 @@ External agents interact via events defined in the respective modules:
 
 ### Event Bus
 
-**Description**: Message hub for publishing/subscribing to events. `publish(event_name, payload)` emits an event; `subscribe(event_name, handler)` registers a handler.
+**Description**: Message hub for publishing/subscribing to events via Redis pub/sub. See `src/events/schemas.py` for `Payload` and `EventName` type definitions.
 
 **API**:
-- `publish(event_name: str, payload: Mapping[str, Any]) -> None` – Publish an event.
-- `subscribe(event_name: str, handler: Callable[[Mapping[str, Any]], None]) -> None` – Subscribe to an event.
-- `unsubscribe(event_name: str, handler: Callable[[Mapping[str, Any]], None]) -> None` – Unsubscribe from an event.
-- `close() -> None` – Close the connection to event bus.
+- `publish(event_name: EventName, payload: Payload, turn: int) -> None` – Publish an event.
+- `subscribe(event_name: EventName, handler: Callable[[Payload], None]) -> None` – Subscribe to an event.
+- `unsubscribe(event_name: EventName, handler: Callable[[Payload], None]) -> None` – Unsubscribe from an event.
 
 **Errors**:
 - `EventBusError` – code `5601`, message `"Event bus operation failed"`.
