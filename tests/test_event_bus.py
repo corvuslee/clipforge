@@ -8,6 +8,7 @@ from fakeredis.aioredis import FakeRedis
 from src.events.bus import EventBus
 from src.events.schemas import (
     EventName,
+    Event,
     BuyWirePayload,
     EmptyPayload,
 )
@@ -41,8 +42,8 @@ class TestSubscribe:
     @pytest.mark.asyncio
     async def test_subscribe_registers_multiple_handlers(self, event_bus):
         """Multiple handlers can subscribe to the same event."""
-        handler1 = lambda p: None
-        handler2 = lambda p: None
+        handler1 = lambda e: None
+        handler2 = lambda e: None
 
         await event_bus.subscribe(EventName.PLAN_PHASE_STARTED, handler1)
         await event_bus.subscribe(EventName.PLAN_PHASE_STARTED, handler2)
@@ -58,7 +59,7 @@ class TestUnsubscribe:
     @pytest.mark.asyncio
     async def test_unsubscribe_removes_handler(self, event_bus):
         """Handler is removed from subscribers."""
-        handler = lambda p: None
+        handler = lambda e: None
         await event_bus.subscribe(EventName.PLAN_PHASE_STARTED, handler)
 
         await event_bus.unsubscribe(EventName.PLAN_PHASE_STARTED, handler)
@@ -74,8 +75,8 @@ class TestEventDelivery:
         """Full cycle: subscribe → publish → handler called."""
         received = []
 
-        def handler(p):
-            received.append(p)
+        def handler(evt: Event):
+            received.append(evt)
 
         await event_bus.subscribe(EventName.BUY_WIRE, handler)
         payload = BuyWirePayload(count=50)
@@ -83,7 +84,8 @@ class TestEventDelivery:
         await event_bus.publish(EventName.BUY_WIRE, payload, turn=1)
 
         assert len(received) == 1
-        assert received[0].count == 50
+        assert received[0].payload.count == 50
+        assert received[0].turn == 1
 
     @pytest.mark.asyncio
     async def test_no_subscriber_no_error(self, event_bus):

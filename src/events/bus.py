@@ -20,7 +20,7 @@ class EventBus:
         self._redis_url = redis_url
         self._redis: redis.Redis | None = None
         self._pubsub: PubSub | None = None
-        self._subscribers: dict[EventName, list[Callable[[Payload], None]]] = {}
+        self._subscribers: dict[EventName, list[Callable[[Event], None]]] = {}
         self._listener_task: asyncio.Task | None = None
 
     async def _connect(self) -> None:
@@ -52,16 +52,18 @@ class EventBus:
 
             handlers = self._subscribers.get(event_name, [])
             for handler in handlers:
-                handler(payload)
+                handler(event)
         except Exception as e:
             raise PublishError(f"Failed to publish event '{event_name}': {e}") from e
 
-    async def subscribe(self, event_name: EventName, handler: Callable[[Payload], None]) -> None:
+    async def subscribe(
+        self, event_name: EventName, handler: Callable[[Event], None]
+    ) -> None:
         """Subscribe a handler to an event.
 
         Args:
             event_name: Name of the event to subscribe to.
-            handler: Callable to invoke when event is published.
+            handler: Callable to invoke when event is published. Receives full Event object.
 
         Raises:
             SubscribeError: If subscription fails.
@@ -82,9 +84,13 @@ class EventBus:
             if not self._listener_task:
                 self._listener_task = asyncio.create_task(self._listen())
         except Exception as e:
-            raise SubscribeError(f"Failed to subscribe to event '{event_name}': {e}") from e
+            raise SubscribeError(
+                f"Failed to subscribe to event '{event_name}': {e}"
+            ) from e
 
-    async def unsubscribe(self, event_name: EventName, handler: Callable[[Payload], None]) -> None:
+    async def unsubscribe(
+        self, event_name: EventName, handler: Callable[[Event], None]
+    ) -> None:
         """Unsubscribe a handler from an event.
 
         Args:
@@ -129,8 +135,8 @@ class EventBus:
                     data = json.loads(message["data"])
                     event = Event(**data)
                     for handler in handlers:
-                        handler(event.payload)
-                except (json.JSONDecodeError, Exception):
+                        handler(event)
+                except json.JSONDecodeError, Exception:
                     continue
         except asyncio.CancelledError:
             pass
