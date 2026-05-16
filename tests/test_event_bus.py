@@ -1,5 +1,7 @@
 """Unit tests for EventBus."""
 
+import asyncio
+
 import pytest
 import pytest_asyncio
 
@@ -73,15 +75,19 @@ class TestEventDelivery:
     @pytest.mark.asyncio
     async def test_subscriber_receives_published_event(self, event_bus):
         """Full cycle: subscribe → publish → handler called."""
+        event = asyncio.Event()
         received = []
 
         def handler(evt: Event):
             received.append(evt)
+            event.set()
 
         await event_bus.subscribe(EventName.BUY_WIRE, handler)
         payload = BuyWirePayload(count=50)
 
         await event_bus.publish(EventName.BUY_WIRE, payload, turn=1)
+
+        await asyncio.wait_for(event.wait(), timeout=0.5)
 
         assert len(received) == 1
         assert received[0].payload.count == 50

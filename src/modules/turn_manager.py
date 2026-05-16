@@ -49,8 +49,15 @@ class TurnManager:
             return
 
         self._running = True
+        # State transition before first await to prevent race conditions
+        self._turn_counter = 1
+        self._current_phase = Phase.PLANNING
+        self._pending_state_reports = MODULES.copy()
+
         await self._subscribe_to_events()
-        await self._start_planning_phase()
+        await self._event_bus.publish(
+            EventName.PLAN_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
+        )
 
     async def _subscribe_to_events(self) -> None:
         """Subscribe to all relevant events."""
@@ -82,90 +89,60 @@ class TurnManager:
             EventName.MARKET_ACTION_COMPLETED, self._on_market_action_completed
         )
 
-    async def _start_planning_phase(self) -> None:
-        """Start the planning phase for current turn.
-
-        No phase validation needed: only called internally from start() and _complete_turn(),
-        which guarantee correct state.
-        """
-        self._turn_counter += 1
-        self._current_phase = Phase.PLANNING
-        self._pending_state_reports = MODULES.copy()
-
-        await self._event_bus.publish(
-            EventName.PLAN_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
-        )
-
-    async def _start_action_phase(self) -> None:
-        """Start the action phase for current turn."""
-        if self._current_phase != Phase.PLANNING:
-            phase_name = self._current_phase.value if self._current_phase else "None"
-            raise TurnSequenceError(f"Cannot start action phase from {phase_name}")
-
-        self._current_phase = Phase.ACTION
-        self._pending_action_completions = MODULES.copy()
-
-        await self._event_bus.publish(
-            EventName.ACTION_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
-        )
-
-    async def _complete_turn(self) -> None:
-        """Complete the current turn and start the next."""
-        if self._current_phase != Phase.ACTION:
-            phase_name = self._current_phase.value if self._current_phase else "None"
-            raise TurnSequenceError(f"Cannot complete turn from {phase_name}")
-
-        await self._event_bus.publish(
-            EventName.ACTION_PHASE_COMPLETED, EmptyPayload(), turn=self._turn_counter
-        )
-
-        await self._start_planning_phase()
-
-    def _handle_state_report(self, module: str, event: Event) -> None:
-        """Process a state report from a module."""
-        # Reject stale events from previous turns
-        if event.turn < self._turn_counter:
-            return
-
-        # Track module reports and open planning window when all 4 have reported
-        if module in self._pending_state_reports:
-            self._pending_state_reports.discard(module)
-
-            # All modules reported?
-            if not self._pending_state_reports:
-                asyncio.create_task(self._open_planning_window())
-
-    def _on_ledger_state_reported(self, event: Event) -> None:
-        """Handle ledger state report."""
-        self._handle_state_report("ledger", event)
-
-    def _on_inventory_state_reported(self, event: Event) -> None:
-        """Handle inventory state report."""
-        self._handle_state_report("inventory", event)
-
-    def _on_factory_state_reported(self, event: Event) -> None:
-        """Handle factory state report."""
-        self._handle_state_report("factory", event)
-
-    def _on_market_state_reported(self, event: Event) -> None:
-        """Handle market state report."""
-        self._handle_state_report("market", event)
-
-    async def _open_planning_window(self) -> None:
-        """Open planning window to external agents."""
-        await self._event_bus.publish(
-            EventName.PLANNING_WINDOW_OPENED, EmptyPayload(), turn=self._turn_counter
-        )
-
     def _on_plan_phase_completed(self, event: Event) -> None:
         """Handle plan_phase_completed from external agent."""
         if event.turn != self._turn_counter:
             return
 
-        asyncio.create_task(self._start_action_phase())
+        # Defensive check: must be in PLANNING phase
+        if self._current_phase != Phase.PLANNING:
+            raise TurnSequenceError(
+                f"Cannot start action phase from {self._current_phase}")
 
-    def _handle_action_completed(self, module: str, event: Event) -> None:
-        """Process an action completion from a module."""
+        # Transition to ACTION phase synchronously
+        self._current_phase = Phase.ACTION
+        self._pending_action_completions = MODULES.copy()
+        asyncio.create_task(self._event_bus.publish(
+            EventName.ACTION_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
+        ))
+
+    def _track_state_report(self, module: str, event: Event) -> None:
+        """Track a state report from a module."""
+        # Reject stale events from previous turns
+        if event.turn < self._turn_counter:
+            return
+
+        if module in self._pending_state_reports:
+            self._pending_state_reports.discard(module)
+
+            # All modules reported - open planning window
+            if not self._pending_state_reports:
+                # Defensive check: must be in PLANNING phase
+                if self._current_phase != Phase.PLANNING:
+                    raise TurnSequenceError(
+                        f"Cannot open planning window from {self._current_phase}")
+                asyncio.create_task(self._event_bus.publish(
+                    EventName.PLANNING_WINDOW_OPENED, EmptyPayload(), turn=self._turn_counter
+                ))
+
+    def _on_ledger_state_reported(self, event: Event) -> None:
+        """Handle ledger state report."""
+        self._track_state_report("ledger", event)
+
+    def _on_inventory_state_reported(self, event: Event) -> None:
+        """Handle inventory state report."""
+        self._track_state_report("inventory", event)
+
+    def _on_factory_state_reported(self, event: Event) -> None:
+        """Handle factory state report."""
+        self._track_state_report("factory", event)
+
+    def _on_market_state_reported(self, event: Event) -> None:
+        """Handle market state report."""
+        self._track_state_report("market", event)
+
+    def _track_action_completion(self, module: str, event: Event) -> None:
+        """Track an action completion from a module."""
         # Reject stale events from previous turns
         if event.turn < self._turn_counter:
             return
@@ -174,22 +151,34 @@ class TurnManager:
         if module in self._pending_action_completions:
             self._pending_action_completions.discard(module)
 
-            # All modules completed?
+            # All modules completed - transition to next turn
             if not self._pending_action_completions:
-                asyncio.create_task(self._complete_turn())
+                # Defensive check: must be in ACTION phase
+                if self._current_phase != Phase.ACTION:
+                    raise TurnSequenceError(
+                        f"Cannot complete turn from {self._current_phase}")
+                self._turn_counter += 1
+                self._current_phase = Phase.PLANNING
+                self._pending_state_reports = MODULES.copy()
+                asyncio.create_task(self._event_bus.publish(
+                    EventName.ACTION_PHASE_COMPLETED, EmptyPayload(), turn=self._turn_counter - 1
+                ))
+                asyncio.create_task(self._event_bus.publish(
+                    EventName.PLAN_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
+                ))
 
     def _on_ledger_action_completed(self, event: Event) -> None:
         """Handle ledger action completion."""
-        self._handle_action_completed("ledger", event)
+        self._track_action_completion("ledger", event)
 
     def _on_inventory_action_completed(self, event: Event) -> None:
         """Handle inventory action completion."""
-        self._handle_action_completed("inventory", event)
+        self._track_action_completion("inventory", event)
 
     def _on_factory_action_completed(self, event: Event) -> None:
         """Handle factory action completion."""
-        self._handle_action_completed("factory", event)
+        self._track_action_completion("factory", event)
 
     def _on_market_action_completed(self, event: Event) -> None:
         """Handle market action completion."""
-        self._handle_action_completed("market", event)
+        self._track_action_completion("market", event)

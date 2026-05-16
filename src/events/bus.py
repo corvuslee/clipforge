@@ -49,10 +49,6 @@ class EventBus:
             event = Event(name=event_name, payload=payload, turn=turn)
             message = json.dumps(event.model_dump())
             await self._redis.publish(event_name.value, message)
-
-            handlers = self._subscribers.get(event_name, [])
-            for handler in handlers:
-                handler(event)
         except Exception as e:
             raise PublishError(f"Failed to publish event '{event_name}': {e}") from e
 
