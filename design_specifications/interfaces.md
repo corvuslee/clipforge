@@ -11,14 +11,14 @@ External agents interact via events defined in the respective modules:
 **Multiple Agents**: Supported. A single program can host multiple specialized agents (e.g., purchasing agent, pricing agent). Each agent handles distinct responsibilities with no overlap. The program emits one `plan_phase_completed` after all internal agents finish planning.
 
 **Events Emitted**:
-- To Ledger: `buy_wire(count: int)`, `buy_autoclipper(count: int)`
+- To Purchasing: `buy_wire(count: int)`, `buy_autoclipper(count: int)`
 - To Market: `set_price(price: float)`
 - To Turn Manager: `plan_phase_completed()`
 
 **Events Subscribed**:
 - `planning_window_opened()` – from Turn Manager; signals agent can submit plans
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; provides current resource state
-- `ledger_state_reported(fund: int)` – from Ledger; provides current fund balance
+- `purchasing_state_reported(fund: int, wire_cost: float, autoclipper_cost: float)` – from Purchasing; provides current fund balance and costs
 - `factory_state_reported(auto_clippers: int)` – from Factory; provides current production capacity
 - `market_state_reported(price: float)` – from Market; provides current selling price
 
@@ -50,11 +50,11 @@ External agents interact via events defined in the respective modules:
 
 **Events Subscribed**:
 - `plan_phase_completed()` – from External Agent; signals planning is done, triggers action phase
-- `ledger_state_reported(fund: int)` – from Ledger; tracks pending state reports
+- `purchasing_state_reported(fund: int, wire_cost: float, autoclipper_cost: float)` – from Purchasing; tracks pending state reports
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; tracks pending state reports
 - `factory_state_reported(auto_clippers: int)` – from Factory; tracks pending state reports
 - `market_state_reported(price: float)` – from Market; tracks pending state reports
-- `ledger_action_completed()` – from Ledger; tracks pending action completions
+- `purchasing_action_completed()` – from Purchasing; tracks pending action completions
 - `inventory_action_completed()` – from Inventory; tracks pending action completions
 - `factory_action_completed()` – from Factory; tracks pending action completions
 - `market_action_completed()` – from Market; tracks pending action completions
@@ -62,26 +62,28 @@ External agents interact via events defined in the respective modules:
 **Errors**:
 - `TurnSequenceError` – code `5101`, message `"Invalid turn transition"`.
 
-### Ledger
+### Purchasing
 
-**Description**: Central ledger handling the system's monetary resources.
+**Description**: Manages funds, costs, and purchase transactions.
 
 **State**:
 - `fund: int` – current cash balance.
+- `wire_cost: float` – current wire cost per spool.
+- `autoclipper_cost: float` – current autoclipper cost (derived from autoclipper count).
 
 **Invariants**:
 - Fund cannot go negative
 
 **API**:
-- `add_funds(amount: int) -> None` – Add funds to ledger.
-- `remove_funds_for_wire(amount: int) -> None` – Remove funds for wire purchase.
-- `remove_funds_for_autoclipper(amount: int) -> None` – Remove funds for autoclipper purchase.
+- `add_funds(amount: int)` – Add funds to purchasing.
+- `remove_funds_for_wire(count: int)` – Remove funds for wire purchase. Returns actual count purchased.
+- `remove_funds_for_autoclipper(count: int)` – Remove funds for autoclipper purchase. Returns actual count purchased.
 
 **Events Emitted**:
-- `ledger_state_reported(fund: int)` – Reports current fund balance to subscribers
+- `purchasing_state_reported(fund: int, wire_cost: float, autoclipper_cost: float)` – Reports current state to subscribers
 - `wire_purchase_approved(count: int)` – Confirms wire purchase validated; other modules can proceed
 - `autoclipper_purchase_approved(count: int)` – Confirms autoclipper purchase validated; other modules can proceed
-- `ledger_action_completed()` – Signals ledger has finished action phase processing
+- `purchasing_action_completed()` – Signals purchasing has finished action phase processing
 
 **Events Subscribed**:
 - `plan_phase_started()` - from Turn Manager; triggers report of current state
@@ -118,7 +120,7 @@ External agents interact via events defined in the respective modules:
 
 **Events Subscribed**:
 - `plan_phase_started()` – from Turn Manager; triggers report of current state
-- `wire_purchase_approved(count: int)` – from Ledger; adds wire to inventory
+- `wire_purchase_approved(count: int)` – from Purchasing; adds wire to inventory
 - `wire_consumed(count: int)` – from Factory; removes wire from inventory
 - `clips_produced(count: int)` – from Factory; adds clips to inventory
 - `clips_sold(clips: int, revenue: int)` – from Market; removes sold clips from inventory
@@ -151,7 +153,7 @@ External agents interact via events defined in the respective modules:
 **Events Subscribed**:
 - `plan_phase_started()` – from Turn Manager; triggers report of current state
 - `inventory_state_reported(wire: int, unsold_clips: int, total_clips: int)` – from Inventory; caches wire count for production calculation
-- `autoclipper_purchase_approved(count: int)` – from Ledger; adds autoclippers
+- `autoclipper_purchase_approved(count: int)` – from Purchasing; adds autoclippers
 - `action_phase_started()` – from Turn Manager; triggers clip production
 
 **Errors**:

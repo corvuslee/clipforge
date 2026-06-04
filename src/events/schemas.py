@@ -108,11 +108,11 @@ class EventName(str, Enum):
     SET_PRICE = "set_price"
     PLAN_PHASE_COMPLETED = "plan_phase_completed"
 
-    # Ledger events
-    LEDGER_STATE_REPORTED = "ledger_state_reported"
+    # Purchasing events
+    PURCHASING_STATE_REPORTED = "purchasing_state_reported"
     WIRE_PURCHASE_APPROVED = "wire_purchase_approved"
     AUTOCLIPPER_PURCHASE_APPROVED = "autoclipper_purchase_approved"
-    LEDGER_ACTION_COMPLETED = "ledger_action_completed"
+    PURCHASING_ACTION_COMPLETED = "purchasing_action_completed"
 
     # Inventory events
     INVENTORY_STATE_REPORTED = "inventory_state_reported"
@@ -159,10 +159,12 @@ class SetPricePayload(BaseModel):
     price: float
 
 
-class LedgerStateReportedPayload(BaseModel):
-    """Payload for ledger_state_reported event."""
+class PurchasingStateReportedPayload(BaseModel):
+    """Payload for purchasing_state_reported event."""
 
     fund: int
+    wire_cost: float
+    autoclipper_cost: float
 
 
 class WirePurchaseApprovedPayload(BaseModel):
@@ -225,7 +227,7 @@ Payload = Union[
     BuyWirePayload,
     BuyAutoclipperPayload,
     SetPricePayload,
-    LedgerStateReportedPayload,
+    PurchasingStateReportedPayload,
     WirePurchaseApprovedPayload,
     AutoclipperPurchaseApprovedPayload,
     InventoryStateReportedPayload,

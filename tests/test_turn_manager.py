@@ -12,7 +12,7 @@ from src.events.schemas import (
     EmptyPayload,
     Event,
     EventName,
-    LedgerStateReportedPayload,
+    PurchasingStateReportedPayload,
     InventoryStateReportedPayload,
     FactoryStateReportedPayload,
     MarketStateReportedPayload,
@@ -84,7 +84,11 @@ class TestPlanningWindow:
 
         # Simulate state reports from modules (planning window not yet opened)
         await event_bus.publish(
-            EventName.LEDGER_STATE_REPORTED, LedgerStateReportedPayload(fund=0), turn=1
+            EventName.PURCHASING_STATE_REPORTED,
+            PurchasingStateReportedPayload(
+                fund=0, wire_cost=20.0, autoclipper_cost=50.0
+            ),
+            turn=1,
         )
         await event_bus.publish(
             EventName.INVENTORY_STATE_REPORTED,
@@ -92,12 +96,16 @@ class TestPlanningWindow:
             turn=1,
         )
         await event_bus.publish(
-            EventName.FACTORY_STATE_REPORTED, FactoryStateReportedPayload(auto_clippers=1), turn=1
+            EventName.FACTORY_STATE_REPORTED,
+            FactoryStateReportedPayload(auto_clippers=1),
+            turn=1,
         )
 
         # Fourth report triggers planning window
         await event_bus.publish(
-            EventName.MARKET_STATE_REPORTED, MarketStateReportedPayload(price=0.05), turn=1
+            EventName.MARKET_STATE_REPORTED,
+            MarketStateReportedPayload(price=0.05),
+            turn=1,
         )
 
         await asyncio.wait_for(event.wait(), timeout=0.5)
@@ -121,7 +129,11 @@ class TestPhaseTransitions:
         # Report all states to open planning window
         await turn_manager.start()
         await event_bus.publish(
-            EventName.LEDGER_STATE_REPORTED, LedgerStateReportedPayload(fund=0), turn=1
+            EventName.PURCHASING_STATE_REPORTED,
+            PurchasingStateReportedPayload(
+                fund=0, wire_cost=20.0, autoclipper_cost=50.0
+            ),
+            turn=1,
         )
         await event_bus.publish(
             EventName.INVENTORY_STATE_REPORTED,
@@ -129,10 +141,14 @@ class TestPhaseTransitions:
             turn=1,
         )
         await event_bus.publish(
-            EventName.FACTORY_STATE_REPORTED, FactoryStateReportedPayload(auto_clippers=1), turn=1
+            EventName.FACTORY_STATE_REPORTED,
+            FactoryStateReportedPayload(auto_clippers=1),
+            turn=1,
         )
         await event_bus.publish(
-            EventName.MARKET_STATE_REPORTED, MarketStateReportedPayload(price=0.05), turn=1
+            EventName.MARKET_STATE_REPORTED,
+            MarketStateReportedPayload(price=0.05),
+            turn=1,
         )
 
         # External agent completes planning
@@ -156,7 +172,11 @@ class TestPhaseTransitions:
         # Setup: get to action phase
         await turn_manager.start()
         await event_bus.publish(
-            EventName.LEDGER_STATE_REPORTED, LedgerStateReportedPayload(fund=0), turn=1
+            EventName.PURCHASING_STATE_REPORTED,
+            PurchasingStateReportedPayload(
+                fund=0, wire_cost=20.0, autoclipper_cost=50.0
+            ),
+            turn=1,
         )
         await event_bus.publish(
             EventName.INVENTORY_STATE_REPORTED,
@@ -164,17 +184,21 @@ class TestPhaseTransitions:
             turn=1,
         )
         await event_bus.publish(
-            EventName.FACTORY_STATE_REPORTED, FactoryStateReportedPayload(auto_clippers=1), turn=1
+            EventName.FACTORY_STATE_REPORTED,
+            FactoryStateReportedPayload(auto_clippers=1),
+            turn=1,
         )
         await event_bus.publish(
-            EventName.MARKET_STATE_REPORTED, MarketStateReportedPayload(price=0.05), turn=1
+            EventName.MARKET_STATE_REPORTED,
+            MarketStateReportedPayload(price=0.05),
+            turn=1,
         )
 
         await event_bus.publish(EventName.PLAN_PHASE_COMPLETED, EmptyPayload(), turn=1)
 
         # Simulate action completions (fourth triggers turn end)
         await event_bus.publish(
-            EventName.LEDGER_ACTION_COMPLETED, EmptyPayload(), turn=1
+            EventName.PURCHASING_ACTION_COMPLETED, EmptyPayload(), turn=1
         )
         await event_bus.publish(
             EventName.INVENTORY_ACTION_COMPLETED, EmptyPayload(), turn=1
@@ -211,7 +235,11 @@ class TestStaleEventRejection:
 
         # Send 3 valid turn 2 reports and 1 stale turn 1 report
         await event_bus.publish(
-            EventName.LEDGER_STATE_REPORTED, LedgerStateReportedPayload(fund=0), turn=2
+            EventName.PURCHASING_STATE_REPORTED,
+            PurchasingStateReportedPayload(
+                fund=0, wire_cost=20.0, autoclipper_cost=50.0
+            ),
+            turn=2,
         )
         await event_bus.publish(
             EventName.INVENTORY_STATE_REPORTED,
@@ -219,10 +247,14 @@ class TestStaleEventRejection:
             turn=2,
         )
         await event_bus.publish(
-            EventName.FACTORY_STATE_REPORTED, FactoryStateReportedPayload(auto_clippers=1), turn=1
+            EventName.FACTORY_STATE_REPORTED,
+            FactoryStateReportedPayload(auto_clippers=1),
+            turn=1,
         )
         await event_bus.publish(
-            EventName.MARKET_STATE_REPORTED, MarketStateReportedPayload(price=0.05), turn=2
+            EventName.MARKET_STATE_REPORTED,
+            MarketStateReportedPayload(price=0.05),
+            turn=2,
         )
 
         # Planning window should NOT open (only 3 valid reports received)
@@ -231,7 +263,9 @@ class TestStaleEventRejection:
 
         # Send the 4th valid turn 2 report
         await event_bus.publish(
-            EventName.FACTORY_STATE_REPORTED, FactoryStateReportedPayload(auto_clippers=1), turn=2
+            EventName.FACTORY_STATE_REPORTED,
+            FactoryStateReportedPayload(auto_clippers=1),
+            turn=2,
         )
 
         await asyncio.wait_for(event.wait(), timeout=0.5)
@@ -254,7 +288,7 @@ class TestStaleEventRejection:
 
         # Send 3 valid turn 2 completions and 1 stale turn 1 completion
         await event_bus.publish(
-            EventName.LEDGER_ACTION_COMPLETED, EmptyPayload(), turn=2
+            EventName.PURCHASING_ACTION_COMPLETED, EmptyPayload(), turn=2
         )
         await event_bus.publish(
             EventName.INVENTORY_ACTION_COMPLETED, EmptyPayload(), turn=1

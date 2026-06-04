@@ -13,13 +13,15 @@
 - All state reports must be received before opening planning window
 - Turn-based sequencing ensures events are processed sequentially; no race conditions
 
-## Ledger
-**Description**: Manages financial resources and transaction tracking
+## Purchasing
+**Description**: Manages funds, costs, and purchase transactions
 
 **Business Logic**:
 - Purchase requests buy maximum affordable quantity (fund // cost), not more
 - Purchase requests are queued during plan phase, processed during action phase
 - Revenue from sales is credited during action phase
+- Wire cost fluctuates based on purchase behaviour (increases after purchases, decays otherwise)
+- Autoclipper cost grows with each purchase
 
 ## Inventory
 **Description**: Tracks physical resources and production output
@@ -68,13 +70,13 @@ sequenceDiagram
     participant TM as Turn Manager
     participant Ext as External Agent(s)
     participant Inv as Inventory
-    participant Led as Ledger
+    participant Pur as Purchasing
     participant Fac as Factory
     participant Mar as Market
 
     note over All: Bootstrap: modules emit initial state on startup
     Inv-xAll: inventory_state_reported (event)
-    Led-xAll: ledger_state_reported (event)
+    Pur-xAll: purchasing_state_reported (event)
     Fac-xAll: factory_state_reported (event)
     Mar-xAll: market_state_reported (event)
     
@@ -82,7 +84,7 @@ sequenceDiagram
     note over All: broadcast to all subscribers
     
     Inv-xAll: inventory_state_reported (event)
-    Led-xAll: ledger_state_reported (event)
+    Pur-xAll: purchasing_state_reported (event)
     Fac-xAll: factory_state_reported (event)
     Mar-xAll: market_state_reported (event)
     note over All: broadcast to Turn Manager and corresponding External Agent(s)
@@ -98,7 +100,7 @@ sequenceDiagram
 sequenceDiagram
     participant TM as Turn Manager
     participant Ext as External Agent(s)
-    participant Led as Ledger
+    participant Pur as Purchasing
     participant Inv as Inventory
     participant Fac as Factory
     participant Mar as Market
@@ -106,7 +108,7 @@ sequenceDiagram
     TM-xAll: action_phase_started (event)
 
     %% Modules signal completion
-    Led-xTM: ledger_action_completed (event)
+    Pur-xTM: purchasing_action_completed (event)
     Inv-xTM: inventory_action_completed (event)
     Fac-xTM: factory_action_completed (event)
     Mar-xTM: market_action_completed (event)
@@ -134,14 +136,14 @@ sequenceDiagram
 sequenceDiagram
     participant TM as Turn Manager
     participant Ext as External Agent(s)
-    participant Led as Ledger
+    participant Pur as Purchasing
     participant Inv as Inventory
 
     TM-xExt: planning_window_opened (event)
-    Ext-xLed: buy_wire (event)
-    TM-xLed: action_phase_started (event)
-    Led->>Led: remove_funds_for_wire()
-    Led-xInv: wire_purchase_approved (event)
+    Ext-xPur: buy_wire (event)
+    TM-xPur: action_phase_started (event)
+    Pur->>Pur: remove_funds_for_wire()
+    Pur-xInv: wire_purchase_approved (event)
     Inv->>Inv: add_wire()
 ```
 
@@ -152,14 +154,14 @@ sequenceDiagram
 sequenceDiagram
     participant TM as Turn Manager
     participant Ext as External Agent(s)
-    participant Led as Ledger
+    participant Pur as Purchasing
     participant Fac as Factory
 
     TM-xExt: planning_window_opened (event)
-    Ext-xLed: buy_autoclipper (event)
-    TM-xLed: action_phase_started (event)
-    Led->>Led: remove_funds_for_autoclipper()
-    Led-xFac: autoclipper_purchase_approved (event)
+    Ext-xPur: buy_autoclipper (event)
+    TM-xPur: action_phase_started (event)
+    Pur->>Pur: remove_funds_for_autoclipper()
+    Pur-xFac: autoclipper_purchase_approved (event)
     Fac->>Fac: add_autoclipper()
 ```
 
@@ -171,19 +173,19 @@ sequenceDiagram
     participant Mar as Market
     participant Inv as Inventory
     participant Fac as Factory
-    participant Led as Ledger
+    participant Pur as Purchasing
 
     Note over Mar,Fac: Planning Phase
     Inv-xMar: inventory_state_reported (event)
     Fac-xMar: factory_state_reported (event)
 
-    Note over Mar,Led: Action Phase
+    Note over Mar,Pur: Action Phase
     TM-xMar: action_phase_started (event)
     Mar->>Mar: process_sales()
     Mar-xInv: clips_sold (event)
     Inv->>Inv: remove_clips()
-    Mar-xLed: clips_sold (event)
-    Led->>Led: add_funds()
+    Mar-xPur: clips_sold (event)
+    Pur->>Pur: add_funds()
 ```
 
 ### Production Flow

@@ -19,7 +19,7 @@ class Phase(str, Enum):
     ACTION = "action"
 
 
-MODULES = {"ledger", "inventory", "factory", "market"}
+MODULES = {"purchasing", "inventory", "factory", "market"}
 
 
 class TurnManager:
@@ -65,7 +65,7 @@ class TurnManager:
             EventName.PLAN_PHASE_COMPLETED, self._on_plan_phase_completed
         )
         await self._event_bus.subscribe(
-            EventName.LEDGER_STATE_REPORTED, self._on_ledger_state_reported
+            EventName.PURCHASING_STATE_REPORTED, self._on_purchasing_state_reported
         )
         await self._event_bus.subscribe(
             EventName.INVENTORY_STATE_REPORTED, self._on_inventory_state_reported
@@ -77,7 +77,7 @@ class TurnManager:
             EventName.MARKET_STATE_REPORTED, self._on_market_state_reported
         )
         await self._event_bus.subscribe(
-            EventName.LEDGER_ACTION_COMPLETED, self._on_ledger_action_completed
+            EventName.PURCHASING_ACTION_COMPLETED, self._on_purchasing_action_completed
         )
         await self._event_bus.subscribe(
             EventName.INVENTORY_ACTION_COMPLETED, self._on_inventory_action_completed
@@ -97,14 +97,17 @@ class TurnManager:
         # Defensive check: must be in PLANNING phase
         if self._current_phase != Phase.PLANNING:
             raise TurnSequenceError(
-                f"Cannot start action phase from {self._current_phase}")
+                f"Cannot start action phase from {self._current_phase}"
+            )
 
         # Transition to ACTION phase synchronously
         self._current_phase = Phase.ACTION
         self._pending_action_completions = MODULES.copy()
-        asyncio.create_task(self._event_bus.publish(
-            EventName.ACTION_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
-        ))
+        asyncio.create_task(
+            self._event_bus.publish(
+                EventName.ACTION_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
+            )
+        )
 
     def _track_state_report(self, module: str, event: Event) -> None:
         """Track a state report from a module."""
@@ -120,14 +123,19 @@ class TurnManager:
                 # Defensive check: must be in PLANNING phase
                 if self._current_phase != Phase.PLANNING:
                     raise TurnSequenceError(
-                        f"Cannot open planning window from {self._current_phase}")
-                asyncio.create_task(self._event_bus.publish(
-                    EventName.PLANNING_WINDOW_OPENED, EmptyPayload(), turn=self._turn_counter
-                ))
+                        f"Cannot open planning window from {self._current_phase}"
+                    )
+                asyncio.create_task(
+                    self._event_bus.publish(
+                        EventName.PLANNING_WINDOW_OPENED,
+                        EmptyPayload(),
+                        turn=self._turn_counter,
+                    )
+                )
 
-    def _on_ledger_state_reported(self, event: Event) -> None:
-        """Handle ledger state report."""
-        self._track_state_report("ledger", event)
+    def _on_purchasing_state_reported(self, event: Event) -> None:
+        """Handle purchasing state report."""
+        self._track_state_report("purchasing", event)
 
     def _on_inventory_state_reported(self, event: Event) -> None:
         """Handle inventory state report."""
@@ -156,20 +164,29 @@ class TurnManager:
                 # Defensive check: must be in ACTION phase
                 if self._current_phase != Phase.ACTION:
                     raise TurnSequenceError(
-                        f"Cannot complete turn from {self._current_phase}")
+                        f"Cannot complete turn from {self._current_phase}"
+                    )
                 self._turn_counter += 1
                 self._current_phase = Phase.PLANNING
                 self._pending_state_reports = MODULES.copy()
-                asyncio.create_task(self._event_bus.publish(
-                    EventName.ACTION_PHASE_COMPLETED, EmptyPayload(), turn=self._turn_counter - 1
-                ))
-                asyncio.create_task(self._event_bus.publish(
-                    EventName.PLAN_PHASE_STARTED, EmptyPayload(), turn=self._turn_counter
-                ))
+                asyncio.create_task(
+                    self._event_bus.publish(
+                        EventName.ACTION_PHASE_COMPLETED,
+                        EmptyPayload(),
+                        turn=self._turn_counter - 1,
+                    )
+                )
+                asyncio.create_task(
+                    self._event_bus.publish(
+                        EventName.PLAN_PHASE_STARTED,
+                        EmptyPayload(),
+                        turn=self._turn_counter,
+                    )
+                )
 
-    def _on_ledger_action_completed(self, event: Event) -> None:
-        """Handle ledger action completion."""
-        self._track_action_completion("ledger", event)
+    def _on_purchasing_action_completed(self, event: Event) -> None:
+        """Handle purchasing action completion."""
+        self._track_action_completion("purchasing", event)
 
     def _on_inventory_action_completed(self, event: Event) -> None:
         """Handle inventory action completion."""

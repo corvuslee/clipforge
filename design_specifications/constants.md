@@ -36,6 +36,7 @@ Wire cost has two components: a drifting base cost and random fluctuation.
 
 **Random fluctuation:**
 - Normal distribution with mean = 0, standard deviation = `WIRE_NOISE_STD_DEV`
+- Applied at the start of each plan phase, so agents see the current cost before making decisions
 
 **Per-inch cost**: `wire_cost / WIRE_INCH_PER_SPOOL`
 
@@ -49,6 +50,10 @@ AutoClipper cost scales exponentially with current count.
 | `AUTOCLIPPER_GROWTH_RATE` | Exponential growth factor | 1.004  |
 
 **Formula**: `autoclipper_cost = AUTOCLIPPER_BASE_COST × AUTOCLIPPER_GROWTH_RATEᴬ` where A = current autoclipper count
+
+**Pricing behavior**:
+- All autoclippers purchased in the same batch cost the same price (the current `autoclipper_cost`)
+- Price increases for the next turn after purchase count is updated
 
 ## Production Function
 
